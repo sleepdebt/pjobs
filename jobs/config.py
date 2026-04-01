@@ -13,7 +13,7 @@ DEFAULT_CONFIG = {
         "Director of Product",
         "Chief Product Officer",
     ],
-    "sources": ["ashby", "lever", "greenhouse"],
+    "sources": ["ashby", "lever", "greenhouse", "wellfound", "builtin"],
     # Optional: add your SerpAPI key here for more reliable search results.
     # Free tier gives ~100 searches/month. Sign up at https://serpapi.com
     "serpapi_key": None,
