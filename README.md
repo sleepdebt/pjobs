@@ -4,6 +4,13 @@ A CLI tool to find product leadership job listings directly from ATS platforms �
 
 Searches **Ashby**, **Lever**, and **Greenhouse** for titles like VP of Product, Head of Product, Director of Product, and more.
 
+## Requirements
+
+- Python 3.9+
+- A free [SerpAPI](https://serpapi.com) account and API key (required for reliable search results)
+
+SerpAPI's free tier includes ~100 searches/month, which is plenty for daily personal use. Without it, searches will likely return no results as Google blocks automated requests.
+
 ## Install
 
 ```bash
@@ -14,6 +21,32 @@ Then add `~/.local/bin` to your PATH if it isn't already:
 
 ```bash
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc && source ~/.zshrc
+```
+
+## Setup
+
+On first run, create your config file:
+
+```bash
+pjobs config
+```
+
+Add your SerpAPI key to `~/.jobs/config.yaml`:
+
+```yaml
+titles:
+  - VP of Product
+  - VP Product
+  - Head of Product
+  - Director of Product
+  - Chief Product Officer
+
+sources:
+  - ashby
+  - lever
+  - greenhouse
+
+serpapi_key: "your-key-here"
 ```
 
 ## Usage
@@ -38,39 +71,9 @@ pjobs config
 pjobs sources
 ```
 
-## Config
-
-Config lives at `~/.jobs/config.yaml` and is created automatically on first run.
-
-```yaml
-titles:
-  - VP of Product
-  - VP Product
-  - Head of Product
-  - Director of Product
-  - Chief Product Officer
-
-sources:
-  - ashby
-  - lever
-  - greenhouse
-
-# Optional: add a SerpAPI key for more reliable results (~100 free searches/month)
-# Sign up at https://serpapi.com
-serpapi_key: null
-```
-
-Edit it with:
-
-```bash
-pjobs config
-```
-
 ## How it works
 
-`pjobs` queries Google for job listings hosted directly on ATS platforms, bypassing the aggregators. Most companies post to their own Ashby, Lever, or Greenhouse board without syndicating to LinkedIn — especially at the VP/Director level where they prefer direct inbound.
-
-By default it uses `googlesearch-python` (no API key needed, rate-limited for personal use). For heavier use, add a SerpAPI key to your config.
+`pjobs` queries Google (via SerpAPI) for job listings hosted directly on ATS platforms, bypassing the big aggregators. Most companies post to their own Ashby, Lever, or Greenhouse board without syndicating to LinkedIn — especially at the VP/Director level where they prefer direct inbound.
 
 ## Daily habit
 
