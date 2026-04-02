@@ -40,19 +40,24 @@ def _print_job(job: dict):
     title = job.get("title") or job.get("searched_title") or "Unknown Role"
     company = job.get("company") or "Unknown Company"
     source = job.get("source") or ""
+    location = job.get("location")
     url = job.get("url", "")
 
     source_color = SOURCE_COLORS.get(source, "white")
 
+    # Line 1: Title · Company · Source · Location (if known)
     line = Text()
     line.append(title, style="bold white")
     line.append("  ·  ", style="dim")
     line.append(company, style="bold")
     line.append("  ·  ", style="dim")
     line.append(source, style=source_color)
+    if location:
+        line.append("  ·  ", style="dim")
+        line.append(location, style="dim italic")
 
     console.print()
-    console.print(f"  ", end="")
+    console.print("  ", end="")
     console.print(line)
     console.print(f"  [dim]{url}[/dim]")
 
@@ -94,3 +99,5 @@ def print_searching(titles: list[str], since: str | None, locations: list[str] |
         msg += f" · last [bold]{since}[/bold]"
     msg += " …"
     console.print(msg, style="dim")
+    if locations:
+        console.print("  [dim](scraping job pages to verify locations — may take a moment)[/dim]")
