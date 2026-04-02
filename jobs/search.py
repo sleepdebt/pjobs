@@ -40,7 +40,6 @@ def parse_since(since: str | None) -> str | None:
     since = since.lower().strip()
     if since in SINCE_TO_TBS:
         return SINCE_TO_TBS[since]
-    # Handle arbitrary values like '5d'
     if since.endswith("h"):
         return "qdr:d"
     if since.endswith("d"):
@@ -54,33 +53,35 @@ def parse_since(since: str | None) -> str | None:
     return None
 
 
-def build_query(title: str, sources: list[str]) -> str:
+def build_query(title: str, sources: list[str], locations: list[str] | None = None) -> str:
     """Build a Google search query for a job title across selected ATS sources."""
     site_filters = " OR ".join(SOURCES[s] for s in sources if s in SOURCES)
-    return f'({site_filters}) "{title}"'
+    query = f'({site_filters}) "{title}"'
+
+    # Append location filter if provided
+    if locations:
+        location_filters = " OR ".join(f'"{loc}"' for loc in locations)
+        query += f" ({location_filters})"
+
+    return query
 
 
 def is_relevant(job: dict, searched_title: str) -> bool:
     """
     Check whether a job result is actually relevant to the searched title.
-    Uses the extracted job title (from URL slug or search result) to verify
-    it contains meaningful keywords from the searched title.
     Falls back to True for sources where we can't parse the title from the URL.
     """
     job_title = job.get("title") or ""
 
-    # If we couldn't extract a title from the URL, trust the search query
     if not job_title:
         return True
 
     job_title_lower = job_title.lower()
     searched_lower = searched_title.lower()
 
-    # Extract significant words from the searched title (skip common stop words)
     STOP_WORDS = {"of", "the", "and", "in", "at", "for", "to", "a", "an"}
     keywords = [w for w in searched_lower.split() if w not in STOP_WORDS]
 
-    # Require at least half the significant keywords to appear in the job title
     if not keywords:
         return True
 
@@ -88,7 +89,13 @@ def is_relevant(job: dict, searched_title: str) -> bool:
     return matches >= max(1, len(keywords) // 2)
 
 
-def search_jobs(titles: list[str], sources: list[str], since: str | None = None, serpapi_key: str | None = None) -> list[dict]:
+def search_jobs(
+    titles: list[str],
+    sources: list[str],
+    since: str | None = None,
+    locations: list[str] | None = None,
+    serpapi_key: str | None = None,
+) -> list[dict]:
     """
     Search for job listings across ATS platforms.
     Returns a deduplicated, relevance-filtered list of job dicts.
@@ -98,7 +105,7 @@ def search_jobs(titles: list[str], sources: list[str], since: str | None = None,
     results = []
 
     for title in titles:
-        query = build_query(title, sources)
+        query = build_query(title, sources, locations=locations)
         if serpapi_key:
             hits = _serpapi_search(query, tbs, serpapi_key)
         else:
@@ -114,7 +121,6 @@ def search_jobs(titles: list[str], sources: list[str], since: str | None = None,
             if not job:
                 continue
 
-            # Use search result title to refine job title if available
             if hit.get("result_title"):
                 extracted = extract_title_from_result(hit["result_title"])
                 if extracted:
@@ -122,13 +128,11 @@ def search_jobs(titles: list[str], sources: list[str], since: str | None = None,
 
             job["searched_title"] = title
 
-            # Filter out irrelevant results
             if not is_relevant(job, title):
                 continue
 
             results.append(job)
 
-        # Be polite — avoid hammering Google between queries
         if not serpapi_key and len(titles) > 1:
             time.sleep(2)
 
@@ -199,7 +203,6 @@ def parse_job_url(url: str) -> dict | None:
     path_parts = [p for p in parsed.path.split("/") if p]
 
     if "lever.co" in hostname:
-        # https://jobs.lever.co/COMPANY/JOB-SLUG
         if not path_parts:
             return None
         company = _slug_to_name(path_parts[0])
@@ -207,14 +210,12 @@ def parse_job_url(url: str) -> dict | None:
         return {"title": title, "company": company, "source": "Lever", "url": url}
 
     elif "greenhouse.io" in hostname:
-        # https://boards.greenhouse.io/COMPANY/jobs/12345
         if not path_parts:
             return None
         company = _slug_to_name(path_parts[0])
         return {"title": None, "company": company, "source": "Greenhouse", "url": url}
 
     elif "ashby.com" in hostname:
-        # https://jobs.ashby.com/COMPANY/JOB-SLUG
         if not path_parts:
             return None
         company = _slug_to_name(path_parts[0])
@@ -222,19 +223,15 @@ def parse_job_url(url: str) -> dict | None:
         return {"title": title, "company": company, "source": "Ashby", "url": url}
 
     elif "wellfound.com" in hostname:
-        # https://wellfound.com/jobs/12345-job-title-slug
         if not path_parts or path_parts[0] != "jobs":
             return None
         slug = path_parts[1] if len(path_parts) > 1 else None
-        # Wellfound slugs start with a numeric ID: "12345-vp-of-product"
         title = _slug_to_title(re.sub(r"^\d+-", "", slug)) if slug else None
         return {"title": title, "company": None, "source": "Wellfound", "url": url}
 
     elif "builtin.com" in hostname:
-        # https://builtin.com/job/CATEGORY/JOB-TITLE-SLUG/ID
         if not path_parts or path_parts[0] != "job":
             return None
-        # Title slug is typically the third segment
         title_slug = path_parts[2] if len(path_parts) > 2 else None
         title = _slug_to_title(title_slug) if title_slug else None
         return {"title": title, "company": None, "source": "BuiltIn", "url": url}
@@ -243,24 +240,18 @@ def parse_job_url(url: str) -> dict | None:
 
 
 def _slug_to_name(slug: str) -> str:
-    """Convert a URL slug to a readable company name. e.g. 'acme-corp' → 'Acme Corp'"""
+    """Convert a URL slug to a readable company name."""
     return " ".join(word.capitalize() for word in slug.replace("-", " ").split())
 
 
 def _slug_to_title(slug: str) -> str | None:
-    """
-    Convert a job URL slug to a readable title.
-    e.g. 'vp-of-product-abc123' → 'VP of Product'
-    """
+    """Convert a job URL slug to a readable title."""
     if not slug:
         return None
-    # Strip trailing UUIDs or numeric IDs
     slug = re.sub(r"-[a-f0-9]{8,}$", "", slug)
     slug = re.sub(r"-\d+$", "", slug)
 
-    # Words that should stay lowercase (unless first word)
     LOWERCASE_WORDS = {"of", "the", "and", "in", "at", "for", "to", "a", "an"}
-    # Known abbreviations that should be all-caps
     UPPERCASE_WORDS = {"vp", "cpo", "cto", "ceo", "svp", "evp", "gm", "pm", "hr"}
 
     words = slug.split("-")
@@ -277,11 +268,7 @@ def _slug_to_title(slug: str) -> str | None:
 
 
 def extract_title_from_result(result_title: str) -> str | None:
-    """
-    Try to extract a clean job title from a Google search result title string.
-    e.g. 'VP of Product at Acme Corp | Lever' → 'VP of Product'
-    """
-    # Strip source suffixes
+    """Extract a clean job title from a Google search result title string."""
     for sep in [" at ", " | ", " - ", " — "]:
         if sep in result_title:
             result_title = result_title.split(sep)[0].strip()

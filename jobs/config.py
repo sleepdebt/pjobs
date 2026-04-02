@@ -14,6 +14,9 @@ DEFAULT_CONFIG = {
         "Chief Product Officer",
     ],
     "sources": ["ashby", "lever", "greenhouse", "wellfound", "builtin"],
+    # Location filters — leave empty to search all locations.
+    # Examples: "remote", "New York", "San Francisco", "United States"
+    "locations": [],
     # Optional: add your SerpAPI key here for more reliable search results.
     # Free tier gives ~100 searches/month. Sign up at https://serpapi.com
     "serpapi_key": None,

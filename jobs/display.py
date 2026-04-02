@@ -8,6 +8,8 @@ SOURCE_COLORS = {
     "Ashby": "cyan",
     "Lever": "magenta",
     "Greenhouse": "green",
+    "Wellfound": "yellow",
+    "BuiltIn": "blue",
 }
 
 
@@ -42,7 +44,6 @@ def _print_job(job: dict):
 
     source_color = SOURCE_COLORS.get(source, "white")
 
-    # Line 1: Title · Company · Source badge
     line = Text()
     line.append(title, style="bold white")
     line.append("  ·  ", style="dim")
@@ -53,8 +54,6 @@ def _print_job(job: dict):
     console.print()
     console.print(f"  ", end="")
     console.print(line)
-
-    # Line 2: URL (clickable in most modern terminals)
     console.print(f"  [dim]{url}[/dim]")
 
 
@@ -83,11 +82,14 @@ def print_sources(sources: list[str]):
     console.print()
 
 
-def print_searching(titles: list[str], since: str | None):
+def print_searching(titles: list[str], since: str | None, locations: list[str] | None = None):
     """Print a status message while searching."""
     console.print()
     title_list = ", ".join(f'[bold]{t}[/bold]' for t in titles)
     msg = f"  Searching for {title_list}"
+    if locations:
+        loc_list = ", ".join(f'[bold]{l}[/bold]' for l in locations)
+        msg += f" · {loc_list}"
     if since:
         msg += f" · last [bold]{since}[/bold]"
     msg += " …"
